@@ -1,0 +1,247 @@
+{% extends 'analysis/base.html' %}
+
+{% block title %}Dashboard - Perfume Sales Analytics{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-white text-center mb-5">📊 Phân Tích Doanh Số Nước Hoa</h1>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card shadow-sm border-0 bg-light text-dark h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase fw-bold mb-2">Tổng Sản Phẩm</h6>
+                    <h2 class="display-4 fw-bold">{{ total_perfumes }}</h2>
+                    <small class="text-muted">sản phẩm</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card shadow-sm border-0 bg-primary text-white h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase fw-bold mb-2">Số Thương Hiệu</h6>
+                    <h2 class="display-4 fw-bold">{{ total_brands }}</h2>
+                    <small class="text-light">brands</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card shadow-sm border-0 bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase fw-bold mb-2">Tổng Đã Bán</h6>
+                    <h2 class="display-4 fw-bold">{{ total_sold|floatformat:0 }}</h2>
+                    <small class="text-light">sản phẩm</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card shadow-sm border-0 bg-warning text-dark h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase fw-bold mb-2">TB Mỗi Sản Phẩm</h6>
+                    <h2 class="display-4 fw-bold">{{ avg_sold|floatformat:0 }}</h2>
+                    <small class="text-muted">đã bán</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Brands & Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">🏆 Top 5 Thương Hiệu (Doanh Số)</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Thương Hiệu</th>
+                                <th class="text-end">Tổng Đã Bán</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for brand in top_brands %}
+                            <tr>
+                                <td><strong>{{ brand.name }}</strong></td>
+                                <td class="text-end">
+                                    <span class="badge bg-success">
+                                        {{ brand.total_sales|default:0 }} 📦
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">
+                                    Chưa có dữ liệu
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">⚡ Thao Tác Nhanh</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'analysis:predict' %}" class="btn btn-primary btn-lg w-100 mb-3">
+                        🔮 Dự Đoán Doanh Số
+                    </a>
+                    <button type="button" class="btn btn-warning btn-lg w-100 mb-3" data-bs-toggle="modal"
+                        data-bs-target="#trainModelModal">
+                        🚀 Train Lại Model
+                    </button>
+                    <a href="/admin/analysis/perfume/" class="btn btn-secondary btn-lg w-100">
+                        📝 Quản Lý Dữ Liệu
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="text-center mb-3">📈 Phân Bố Doanh Số</h5>
+                {{ sales_distribution|safe }}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="text-center mb-3">💰 Giá vs Doanh Số</h5>
+                {{ price_vs_sales|safe }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="chart-container">
+                <h5 class="text-center mb-3">🏆 Top Brands Theo Doanh Số</h5>
+                {{ brand_sales|safe }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3 -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="text-center mb-3">🧪 Tỷ Lệ Các Loại Nước Hoa (Nồng Độ)</h5>
+                {{ type_distribution|safe }}
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Diagnostic Plots Section -->
+    {% if diagnostic_plots %}
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">📊 Phân Tích Dữ Liệu</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for plot in diagnostic_plots %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <img src="{{ plot }}" class="img-fluid" alt="Diagnostic Plot">
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Train Model Modal -->
+<div class="modal fade" id="trainModelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">🚀 Train Model Dự Đoán Doanh Số</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có chắc muốn train lại model dự đoán doanh số?</p>
+                <p class="text-muted">Quá trình này có thể mất vài phút.</p>
+                <div id="trainProgress" class="d-none">
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                            style="width: 100%"></div>
+                    </div>
+                    <p class="text-center">Đang train model... Vui lòng đợi.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-warning" id="confirmTrainBtn">Train Model</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('confirmTrainBtn').addEventListener('click', function () {
+        // Show progress
+        document.getElementById('trainProgress').classList.remove('d-none');
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang train...';
+
+        fetch('{% url "analysis:train_model" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('trainProgress').classList.add('d-none');
+
+                if (data.success) {
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('trainModelModal'));
+                    modal.hide();
+
+                    alert('✅ Train model thành công!\n' +
+                        'Model tốt nhất: ' + data.best_model + '\n' +
+                        'Số features quan trọng: ' + (data.feature_importance?.length || 0));
+                    location.reload();
+                } else {
+                    this.disabled = false;
+                    this.innerHTML = 'Train Model';
+                    alert('❌ Lỗi: ' + data.error);
+                }
+            })
+            .catch(error => {
+                document.getElementById('trainProgress').classList.add('d-none');
+                this.disabled = false;
+                this.innerHTML = 'Train Model';
+                alert('❌ Lỗi kết nối: ' + error);
+            });
+    });
+
+    // Reset modal
+    document.getElementById('trainModelModal').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('trainProgress').classList.add('d-none');
+        document.getElementById('confirmTrainBtn').disabled = false;
+        document.getElementById('confirmTrainBtn').innerHTML = 'Train Model';
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,410 @@
+{% extends 'analysis/base.html' %}
+
+{% block title %}Dự Đoán Doanh Số - Perfume Sales Analytics{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3 class="mb-0">🔮 Dự Đoán Doanh Số Nước Hoa</h3>
+                    <p class="mb-0 mt-2">Nhập thông tin sản phẩm để dự đoán số lượng bán</p>
+                </div>
+                <div class="card-body p-4">
+                    <form id="predictForm" method="post">
+                        {% csrf_token %}
+
+                        <!-- Product Info -->
+                        <h5 class="mb-3">📦 Thông Tin Sản Phẩm</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="brand" class="form-label">Thương Hiệu *</label>
+                                <select class="form-select" id="brand" name="brand" required>
+                                    <option value="">Chọn thương hiệu...</option>
+                                    {% for brand in brands %}
+                                    <option value="{{ brand.name }}">{{ brand.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="title" class="form-label">Tên Sản Phẩm *</label>
+                                <input type="text" class="form-control" id="title" name="title" required
+                                    placeholder="VD: Dior Sauvage EDT 100ml">
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label for="type" class="form-label">Loại/Nồng Độ *</label>
+                                <select class="form-select" id="type" name="type" required>
+                                    <option value="EDT" selected>EDT (Eau de Toilette)</option>
+                                    <option value="EDP">EDP (Eau de Parfum)</option>
+                                    <option value="Parfum">Parfum</option>
+                                    <option value="Cologne">Cologne</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="price" class="form-label">Giá (USD) *</label>
+                                <input type="number" class="form-control" id="price" name="price" value="100" min="1"
+                                    step="0.01" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="available" class="form-label">Số Lượng Còn *</label>
+                                <input type="number" class="form-control" id="available" name="available" value="50"
+                                    min="0" required>
+                            </div>
+                        </div>
+
+                        <!-- Location Info -->
+                        <h5 class="mb-3">🌍 Thông Tin Địa Điểm</h5>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="country" class="form-label">Quốc Gia *</label>
+                                <select class="form-select" id="country" name="country" required>
+                                    {% for country in countries %}
+                                    <option value="{{ country }}" {% if country == "US" %}selected{% endif %}>
+                                        {{ country }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="state_city" class="form-label">Thành Phố/Bang</label>
+                                <input type="text" class="form-control" id="state_city" name="state_city"
+                                    value="New York" placeholder="VD: New York, London, Paris">
+                            </div>
+                        </div>
+
+                        <!-- Time Info -->
+                        <h5 class="mb-3">⏰ Thông Tin Thời Gian</h5>
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <label for="days_since_update" class="form-label">
+                                    Số Ngày Kể Từ Lần Cập Nhật Cuối
+                                </label>
+                                <input type="number" class="form-control" id="days_since_update"
+                                    name="days_since_update" value="0" min="0" placeholder="0 = hôm nay">
+                                <small class="text-muted">
+                                    Càng mới cập nhật (số ngày thấp) thì khả năng bán cao hơn
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <span id="submitText">🔮 Dự Đoán Doanh Số</span>
+                                <span id="loadingSpinner" class="spinner-border spinner-border-sm d-none"></span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Result Section -->
+                    <div id="resultSection" class="mt-4 d-none">
+                        <div class="alert alert-success" role="alert">
+                            <h5 class="alert-heading">🎉 Kết Quả Dự Đoán</h5>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <p class="mb-0">
+                                        <strong id="perfumeName"></strong>
+                                    </p>
+                                    <small class="text-muted" id="perfumeDetails"></small>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <p class="mb-0">Dự đoán bán được:</p>
+                                    <h2 class="text-primary mb-0">
+                                        <span id="predictedSales"></span> 📦
+                                    </h2>
+                                    <small class="text-muted">sản phẩm</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Error Section -->
+                    <div id="errorSection" class="mt-4 d-none">
+                        <div class="alert alert-danger" role="alert">
+                            <h5 class="alert-heading">❌ Lỗi</h5>
+                            <hr>
+                            <p class="mb-0" id="errorMessage"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Model Metrics -->
+            <div id="modelMetrics" class="mt-4 d-none">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">📊 Đánh Giá Độ Chính Xác Mô Hình</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- MAPE -->
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6 class="card-title">MAPE - Sai Số Phần Trăm Tuyệt Đối</h6>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span id="mapeValue" class="h4 mb-0"></span>
+                                            <span id="mapeBadge" class="badge"></span>
+                                        </div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle"></i>
+                                            <span id="mapeDescription"></span>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- R² Score -->
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6 class="card-title">R² Score - Độ Phù Hợp Mô Hình</h6>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span id="r2Score" class="h4 mb-0"></span>
+                                            <span id="r2Badge" class="badge"></span>
+                                        </div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle"></i>
+                                            <span id="r2Description"></span>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- RMSE & MAE -->
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6 class="card-title">RMSE - Sai Số Bình Phương</h6>
+                                        <div class="mb-3">
+                                            <span id="rmseValue" class="h5"></span>
+                                            <span class="text-muted">sản phẩm</span>
+                                            <div class="progress mt-2" style="height: 10px;">
+                                                <div id="rmseBar" class="progress-bar" role="progressbar"></div>
+                                            </div>
+                                            <small class="text-muted">Độ lệch so với giá trị thực</small>
+                                        </div>
+
+                                        <h6 class="card-title mt-4">MAE - Sai Số Tuyệt Đối</h6>
+                                        <div>
+                                            <span id="maeValue" class="h5"></span>
+                                            <span class="text-muted">sản phẩm</span>
+                                            <div class="progress mt-2" style="height: 10px;">
+                                                <div id="maeBar" class="progress-bar bg-success" role="progressbar"></div>
+                                            </div>
+                                            <small class="text-muted">Sai số trung bình</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Cross Validation & Overfit -->
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Cross Validation</h6>
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between">
+                                                <span>Độ ổn định:</span>
+                                                <span id="cvMean" class="fw-bold"></span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span>Độ lệch chuẩn:</span>
+                                                <span id="cvStd" class="fw-bold"></span>
+                                            </div>
+                                            <div class="mt-2" id="cvStability"></div>
+                                        </div>
+
+                                        <h6 class="card-title mt-4">Overfit Gap</h6>
+                                        <div>
+                                            <div class="d-flex justify-content-between">
+                                                <span>Chênh lệch:</span>
+                                                <span id="overfitGap" class="fw-bold"></span>
+                                            </div>
+                                            <div class="progress mt-2" style="height: 10px;">
+                                                <div id="overfitBar" class="progress-bar bg-warning" role="progressbar"></div>
+                                            </div>
+                                            <div id="overfitStatus" class="mt-1 small"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">💡 Gợi Ý Tối Ưu Doanh Số</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Giá cả:</strong> Giá hợp lý theo thị trường (50-200 USD)</li>
+                        <li><strong>Tồn kho:</strong> Có đủ hàng trong kho (Available > 10)</li>
+                        <li><strong>Cập nhật:</strong> Sản phẩm mới cập nhật thường bán tốt hơn</li>
+                        <li><strong>Thương hiệu:</strong> Brands nổi tiếng có ưu thế</li>
+                        <li><strong>Địa điểm:</strong> Thị trường lớn có doanh số cao hơn</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('predictForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    // Show loading
+    document.getElementById('submitText').classList.add('d-none');
+    document.getElementById('loadingSpinner').classList.remove('d-none');
+    document.getElementById('resultSection').classList.add('d-none');
+    document.getElementById('errorSection').classList.add('d-none');
+    document.getElementById('modelMetrics').classList.add('d-none');
+
+    const formData = new FormData(this);
+
+    fetch(this.action || window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Hide loading
+        document.getElementById('submitText').classList.remove('d-none');
+        document.getElementById('loadingSpinner').classList.add('d-none');
+
+        if (data.success) {
+            // Show result
+            document.getElementById('perfumeName').textContent = formData.get('title');
+            document.getElementById('perfumeDetails').textContent =
+                `${formData.get('brand')} | ${formData.get('type')} | $${formData.get('price')} | ${formData.get('state_city')}, ${formData.get('country')}`;
+            document.getElementById('predictedSales').textContent = data.predicted_sales;
+            document.getElementById('resultSection').classList.remove('d-none');
+
+            // ✅ XỬ LÝ METRICS (Chỉ 1 lần duy nhất)
+            if (data.metrics) {
+                const m = data.metrics;
+
+                // MAPE
+                const mape = m.mape;
+                document.getElementById('mapeValue').textContent = `${mape.toFixed(2)}%`;
+                const mapeBadge = document.getElementById('mapeBadge');
+                let mapeDesc = '';
+
+                if (mape <= 10) {
+                    mapeBadge.className = 'badge bg-success';
+                    mapeBadge.textContent = 'Rất tốt';
+                    mapeDesc = 'Mô hình dự đoán rất chính xác';
+                } else if (mape <= 20) {
+                    mapeBadge.className = 'badge bg-primary';
+                    mapeBadge.textContent = 'Tốt';
+                    mapeDesc = 'Mô hình dự đoán chấp nhận được';
+                } else if (mape <= 30) {
+                    mapeBadge.className = 'badge bg-warning';
+                    mapeBadge.textContent = 'Trung bình';
+                    mapeDesc = 'Mô hình có thể cần cải thiện';
+                } else {
+                    mapeBadge.className = 'badge bg-danger';
+                    mapeBadge.textContent = 'Kém';
+                    mapeDesc = 'Mô hình dự đoán không ổn định';
+                }
+                document.getElementById('mapeDescription').textContent = mapeDesc;
+
+                // R² Score
+                const r2 = m.r2;
+                document.getElementById('r2Score').textContent = r2.toFixed(3);
+                const r2Badge = document.getElementById('r2Badge');
+                let r2Desc = '';
+
+                if (r2 >= 0.7) {
+                    r2Badge.className = 'badge bg-success';
+                    r2Badge.textContent = 'Tốt';
+                    r2Desc = 'Mô hình giải thích tốt dữ liệu';
+                } else if (r2 >= 0.5) {
+                    r2Badge.className = 'badge bg-primary';
+                    r2Badge.textContent = 'Khá';
+                    r2Desc = 'Mô hình giải thích tương đối';
+                } else {
+                    r2Badge.className = 'badge bg-warning';
+                    r2Badge.textContent = 'Yếu';
+                    r2Desc = 'Mô hình cần cải thiện';
+                }
+                document.getElementById('r2Description').textContent = r2Desc;
+
+                // RMSE
+                const rmse = m.rmse;
+                document.getElementById('rmseValue').textContent = rmse.toFixed(0);
+                const rmseBar = document.getElementById('rmseBar');
+                const rmsePercent = Math.min(100, (rmse / 200) * 100);
+                rmseBar.style.width = `${rmsePercent}%`;
+                rmseBar.className = `progress-bar ${rmse > 100 ? 'bg-danger' : rmse > 50 ? 'bg-warning' : 'bg-success'}`;
+
+                // MAE
+                const mae = m.mae;
+                document.getElementById('maeValue').textContent = mae.toFixed(0);
+                const maeBar = document.getElementById('maeBar');
+                const maePercent = Math.min(100, (mae / 200) * 100);
+                maeBar.style.width = `${maePercent}%`;
+                maeBar.className = `progress-bar ${mae > 100 ? 'bg-danger' : mae > 50 ? 'bg-warning' : 'bg-success'}`;
+
+                // Cross Validation
+                document.getElementById('cvMean').textContent = m.cv_mean.toFixed(3);
+                document.getElementById('cvStd').textContent = m.cv_std.toFixed(3);
+
+                const cvStability = document.getElementById('cvStability');
+                if (m.cv_std < 0.1) {
+                    cvStability.innerHTML = '<span class="badge bg-success">Ổn định cao</span> Mô hình ổn định';
+                } else if (m.cv_std < 0.2) {
+                    cvStability.innerHTML = '<span class="badge bg-primary">Khá ổn định</span> Tương đối ổn định';
+                } else {
+                    cvStability.innerHTML = '<span class="badge bg-warning">Không ổn định</span> Cần cải thiện';
+                }
+
+                // Overfit Gap
+                const overfitGap = m.overfit_gap;
+                document.getElementById('overfitGap').textContent = overfitGap.toFixed(3);
+                const overfitBar = document.getElementById('overfitBar');
+                const overfitStatus = document.getElementById('overfitStatus');
+                const overfitPercent = Math.min(100, (overfitGap / 0.3) * 100);
+                overfitBar.style.width = `${overfitPercent}%`;
+
+                if (overfitGap > 0.15) {
+                    overfitBar.className = 'progress-bar bg-danger';
+                    overfitStatus.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger"></i> Mô hình có thể overfit';
+                } else if (overfitGap > 0.1) {
+                    overfitBar.className = 'progress-bar bg-warning';
+                    overfitStatus.innerHTML = '<i class="bi bi-info-circle-fill text-warning"></i> Hơi overfit';
+                } else {
+                    overfitBar.className = 'progress-bar bg-success';
+                    overfitStatus.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> Cân bằng tốt';
+                }
+
+                // Show metrics section
+                document.getElementById('modelMetrics').classList.remove('d-none');
+            }
+
+            // Scroll to result
+            document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+        } else {
+            // Show error
+            document.getElementById('errorMessage').textContent = data.error || 'Có lỗi xảy ra';
+            document.getElementById('errorSection').classList.remove('d-none');
+        }
+    })
+    .catch(error => {
+        document.getElementById('submitText').classList.remove('d-none');
+        document.getElementById('loadingSpinner').classList.add('d-none');
+        document.getElementById('errorMessage').textContent = 'Lỗi: ' + error.message;
+        document.getElementById('errorSection').classList.remove('d-none');
+    });
+});
+</script>
+{% endblock %}
